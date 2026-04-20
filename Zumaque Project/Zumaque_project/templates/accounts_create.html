@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+{% block title %}{{ 'Editar Cuenta' if edit_mode else 'Nueva Cuenta' }}{% endblock %}
+{% block content %}
+<div class="card shadow-sm mx-auto" style="max-width: 600px;">
+    <div class="card-header {{ 'bg-warning text-dark' if edit_mode else 'bg-primary text-white' }}">
+        <h4 class="mb-0">{{ 'Editar Cuenta: ' ~ account.ID if edit_mode else 'Crear Nueva Cuenta' }}</h4>
+    </div>
+    <div class="card-body">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="alert alert-danger">
+            {{ messages[0] }}
+        </div>
+        {% endif %}
+        {% endwith %}
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">ID Cuenta</label>
+                <input type="text" name="ID" class="form-control" value="{{ account.ID if account else '' }}" {{ 'readonly' if edit_mode else 'required' }}>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Tipo de Cuenta</label>
+                <input type="text" name="accType" class="form-control" value="{{ account.accType if account else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Concepto</label>
+                <input type="text" name="concept" class="form-control" value="{{ account.concept if account else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Referencia</label>
+                <input type="text" name="reference" class="form-control" value="{{ account.reference if account else '' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Total</label>
+                <input type="number" step="0.01" name="Total" class="form-control" value="{{ account.Total if account else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Fecha Vencimiento</label>
+                <input type="date" name="enddate" class="form-control" value="{{ account.enddate|iso_date if account else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Estado</label>
+                <select name="status" class="form-select">
+                    <option value="pendiente" {{ 'selected' if account and account.status == 'pendiente' else '' }}>Pendiente</option>
+                    <option value="pagado" {{ 'selected' if account and account.status == 'pagado' else '' }}>Pagado</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn {{ 'btn-warning' if edit_mode else 'btn-success' }} flex-grow-1">
+                    {{ 'Actualizar Cuenta' if edit_mode else 'Guardar Cuenta' }}
+                </button>
+                <a href="{{ url_for('index_accounts') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

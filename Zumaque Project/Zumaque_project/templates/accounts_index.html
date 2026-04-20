@@ -1,0 +1,152 @@
+{% extends "layout.html" %}
+{% block title %}Gestión de Cuentas{% endblock %}
+{% block content %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Listado de Cuentas Constantes</h2>
+        <div>
+            <a href="{{ url_for('create_account') }}" class="btn btn-primary">Nueva Cuenta</a>
+            <a href="{{ url_for('index_payments') }}" class="btn btn-outline-secondary">Ver Pagos</a>
+        </div>
+    </div>
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Concepto</th>
+                <th>Referencia</th>
+                <th>Total</th>
+                <th>Vencimiento</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for acc in accounts %}
+            <tr>
+                <td>{{ acc.ID }}</td>
+                <td>{{ acc.accType }}</td>
+                <td>{{ acc.concept }}</td>
+                <td>{{ acc.reference }}</td>
+                <td>${{ "{:,.2f}".format(acc.Total) }}</td>
+                <td>{{ acc.enddate|spanish_date }}</td>
+                <td>
+                    <span class="badge {% if acc.status == 'pagado' %}bg-success{% elif acc.status == 'vencido' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                        {{ acc.status }}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info text-white" onclick="viewAccountDetails('{{ acc.ID }}')">
+                        <i data-lucide="eye"></i> Ver
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Modal de Detalles de Cuenta -->
+    <div class="modal fade" id="accountModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Detalles de Cuenta: <span id="modalAccountID"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <h6>Historial de Pagos</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID Pago</th>
+                                        <th>Monto</th>
+                                        <th>Fecha</th>
+                                        <th>Método</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paymentsHistoryBody">
+                                    <!-- Se llena vía JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a id="editAccountBtn" href="#" class="btn btn-warning">
+                            <i data-lucide="edit-3"></i> Editar Cuenta
+                        </a>
+                        <form id="deleteAccountForm" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar esta cuenta?')">
+                            <button type="submit" class="btn btn-danger">
+                                <i data-lucide="trash-2"></i> Eliminar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+       
+        let accountModal;
+        document.addEventListener('DOMContentLoaded', () => {
+            accountModal = new bootstrap.Modal(document.getElementById('accountModal'));
+        });
+        
+        function viewAccountDetails(id) {
+            fetch(`/accounts/details/${id}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Error al obtener detalles');
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.account) {
+                        alert("No se encontró la información de la cuenta");
+                        return;
+                    }
+
+                    document.getElementById('modalAccountID').innerText = data.account.ID;
+                    // Configurar botones de acción
+                    document.getElementById('editAccountBtn').href = `/accounts/edit/${id}`;
+                    document.getElementById('deleteAccountForm').action = `/accounts/delete/${id}`;
+                    
+                    // Llenar tabla de pagos
+                    const tbody = document.getElementById('paymentsHistoryBody');
+                    tbody.innerHTML = '';
+                    
+                    if (data.payments.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay pagos registrados</td></tr>';
+                    } else {
+                        data.payments.forEach(p => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${p.payID}</td>
+                                    <td>$${parseFloat(p.amount_paid).toLocaleString()}</td>
+                                    <td>${p.payment_date}</td>
+                                    <td>${p.method}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    
+                    accountModal.show();
+                    lucide.createIcons(); // Recargar iconos dentro del modal
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("Error al cargar los datos. Por favor, intente de nuevo.");
+                });
+        }
+    </script>
+{% endblock %}

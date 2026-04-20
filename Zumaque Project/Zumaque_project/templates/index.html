@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block title %}Gestión de Pagos{% endblock %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Listado de Pagos</h2>
+        <a href="{{ url_for('create_payment') }}" class="btn btn-primary">Registrar Pago</a>
+    </div>
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID Pago</th>
+                <th>ID Cuenta</th>
+                <th>Monto</th>
+                <th>Fecha</th>
+                <th>Método</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pay in payments %}
+            <tr>
+                <td>{{ pay.payID }}</td>
+                <td>{{ pay.accountID }}</td>
+                <td>${{ "{:,.2f}".format(pay.amount_paid) }}</td>
+                <td>{{ pay.payment_date|spanish_date }}</td>
+                <td>{{ pay.method }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{{ url_for('edit_payment', id=pay.payID) }}" class="btn btn-warning">Editar</a>
+                        <a href="{{ url_for('delete_payment', id=pay.payID) }}" class="btn btn-danger">Eliminar</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

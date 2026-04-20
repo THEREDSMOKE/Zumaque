@@ -1,0 +1,8 @@
+pytest
+setuptools
+wheel
+flask 
+pyodbc
+waitress
+werkzeug
+jwt
