@@ -1,0 +1,10 @@
+dev-requirements.txt
+pyproject.toml
+Zumaque/__init__.py
+Zumaque/__main__.py
+Zumaque.egg-info/PKG-INFO
+Zumaque.egg-info/SOURCES.txt
+Zumaque.egg-info/dependency_links.txt
+Zumaque.egg-info/requires.txt
+Zumaque.egg-info/top_level.txt
+tests/test_Zumaque.py

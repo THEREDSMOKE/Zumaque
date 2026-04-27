@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Zumaque Project{% endblock %}</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root { 
+            --primary-color: #475569; /* Gris azulado */
+            --primary-hover: #334155;
+            --accent-color: #0ea5e9; /* Azul claro vibrante */
+            --bg-color: #f0f9ff; /* Fondo Azul muy claro */
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-color); margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .sidebar { 
+            height: 100%; width: 260px; position: fixed; top: 0; left: -260px; 
+            background: var(--primary-color); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 1001; overflow: auto; box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar.active { left: 0; }
+        
+        .sidebar-header { padding: 24px; color: white; font-weight: 700; font-size: 1.25rem; border-bottom: 1px solid #1e293b; }
+        
+        .sidebar a { 
+            padding: 14px 24px; color: #cbd5e1; text-decoration: none; display: flex; 
+            align-items: center; gap: 12px; transition: 0.2s; border-left: 4px solid transparent;
+        }
+        .sidebar a:hover { background: var(--primary-hover); color: white; border-left-color: var(--accent-color); }
+        .sidebar a i { width: 18px; height: 18px; }
+
+        .menu-btn { 
+            position: fixed; top: 80px; left: 20px; z-index: 1002; 
+            background: var(--primary-color); color: white; border: none; 
+            padding: 10px 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
+        }
+
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(2px);
+            display: none; z-index: 999;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Decoración superior e inferior */
+        .top-header {
+            background: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-bottom: 3px solid var(--accent-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .top-header h1 { margin: 0; font-size: 1.5rem; color: var(--primary-color); font-weight: 800; letter-spacing: 1px; }
+        .money-counter {
+            background: var(--accent-color);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            box-shadow: 0 4px 18px rgba(14, 165, 233, 0.18);
+            white-space: nowrap;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            line-height: 1.2;
+        }
+
+        .bottom-footer {
+            background: var(--primary-color);
+            color: #cbd5e1;
+            text-align: center;
+            padding: 10px;
+            margin-top: auto;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .main-content { padding: 40px 20px; transition: 0.3s; flex: 1; }
+    </style>
+</head>
+<body data-current-tasa="{{ current_tasa | default(0) | tojson }}">
+    <header class="top-header">
+        <h1>ZumaqueAPP</h1>
+        <div class="d-flex align-items-center gap-3">
+            {% if payment_reminders %}
+            <div class="dropdown">
+                <button class="btn btn-warning btn-sm position-relative" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i data-lucide="bell"></i> Recordatorios
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        {{ payment_reminders|length }}
+                    </span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" style="min-width: 300px;">
+                    {% for reminder in payment_reminders %}
+                    <li>
+                        <div class="dropdown-item">
+                            <strong>{{ reminder.concept }}</strong><br>
+                            <small class="text-muted">Total Cuenta: ${{ "{:,.2f}".format(reminder.total_amount or 0) }}</small><br>
+                            <small class="text-danger">Vence: {{ reminder.next_payment_date.strftime('%d/%m/%Y') if reminder.next_payment_date and reminder.next_payment_date is not mapping else reminder.next_payment_date }}</small>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            <div class="money-counter text-end">
+                <div style="font-size: 0.95rem;">Total: ${{ "{:,.2f}".format(money_counter) }}</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">Bs. {{ "{:,.2f}".format(money_counter * current_tasa) }}</div>
+                <div style="font-size: 0.7rem; opacity: 0.85;">Tasa: Bs. {{ "{:,.2f}".format(current_tasa) }}</div>
+            </div>
+            <div class="d-flex flex-column gap-1">
+                <button class="btn btn-sm btn-light ms-2" data-bs-toggle="modal" data-bs-target="#addMoneyModal" title="Agregar Dinero">+</button>
+                <button class="btn btn-sm btn-outline-light ms-2" data-bs-toggle="modal" data-bs-target="#updateTasaModal" title="Actualizar Tasa" style="padding: 2px 5px;">
+                    <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <button class="menu-btn" id="menuBtn">
+        <i data-lucide="menu" id="menuIcon"></i>
+    </button>
+
+    <!-- Modal de Notificaciones Automáticas (Vencimientos a 3 días) -->
+    {% if payment_reminders %}
+    <div class="modal fade" id="autoNotificationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold">
+                        <i data-lucide="alert-circle" class="me-2"></i> Recordatorios de Pago
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="mb-4">Se han detectado <strong>{{ payment_reminders|length }}</strong> cuenta(s) con vencimiento próximo (3 días o menos):</p>
+                    <div class="list-group">
+                        {% for reminder in payment_reminders %}
+                        <div class="list-group-item list-group-item-action border-start border-warning border-4 mb-2 shadow-sm rounded">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <h6 class="mb-1 fw-bold">{{ reminder.concept }}</h6>
+                                <span class="badge bg-danger">Vence: {{ reminder.next_payment_date|spanish_date }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small class="text-muted">Total: ${{ "{:,.2f}".format(reminder.total_amount or 0) }}</small>
+                                <span class="text-primary fw-bold">Saldo: ${{ "{:,.2f}".format(reminder.remaining_balance or 0) }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <a href="{{ url_for('index_accounts') }}" class="btn btn-primary">Ir a Cuentas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const notifyModal = new bootstrap.Modal(document.getElementById('autoNotificationModal'));
+            notifyModal.show();
+            if (window.lucide) lucide.createIcons();
+        });
+    </script>
+    {% endif %}
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            Zumaque App
+            <button class="close-btn" id="closeBtn" style="float: right; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div class="mt-3">
+            <a href="{{ url_for('index_accounts') }}"><i data-lucide="layers"></i> Cuentas</a>
+            <a href="{{ url_for('index_payments') }}"><i data-lucide="credit-card"></i> Pagos</a>
+            <a href="{{ url_for('create_account') }}"><i data-lucide="plus-square"></i> Nueva Cuenta</a>
+            <a href="{{ url_for('create_payment') }}"><i data-lucide="plus-circle"></i> Nuevo Pago</a>
+            <hr style="border-color: #1e293b;">
+            <a href="{{ url_for('logout') }}" style="color: #f87171;"><i data-lucide="log-out"></i> Cerrar Sesión</a>
+        </div>
+    </div>
+
+    <main class="main-content container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bottom-footer">
+        manejo de pagos
+    </footer>
+
+    <script>
+        // Exponer tasa actual a JS
+        var tasaValue = "{{ current_tasa | default(0) }}";
+        window.currentTasa = parseFloat(tasaValue) || 0;
+        // Inicializar iconos
+        lucide.createIcons();
+
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const menuBtn = document.getElementById('menuBtn');
+        const closeBtn = document.getElementById('closeBtn');
+
+        function toggleMenu() {
+            const isActive = sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            
+            // Hide/show menu button
+            menuBtn.style.display = isActive ? 'none' : 'flex';
+        }
+
+        menuBtn.addEventListener('click', toggleMenu);
+        overlay.addEventListener('click', toggleMenu);
+        closeBtn.addEventListener('click', toggleMenu);
+    </script>
+
+    <!-- Modal para Agregar Dinero -->
+    <div class="modal fade" id="addMoneyModal" tabindex="-1" aria-labelledby="addMoneyModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addMoneyModalLabel">Agregar Dinero a la Cuenta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('add_money') }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Monto a Agregar (Dólares)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" class="form-control" id="amount" name="amount" required min="0.01">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tasa" class="form-label">Tasa de Cambio (Bolívares por Dólar)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Bs. / $</span>
+                                <input type="number" step="0.01" class="form-control" id="tasa" name="tasa" value="{{ current_tasa }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Agregar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Actualizar Tasa solamente -->
+    <div class="modal fade" id="updateTasaModal" tabindex="-1" aria-labelledby="updateTasaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateTasaModalLabel">Actualizar Tasa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('update_tasa') }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="tasa_update" class="form-label">Nueva Tasa (Bs. / $)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Bs.</span>
+                                <input type="number" step="0.01" class="form-control" id="tasa_update" name="tasa" value="{{ current_tasa }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary w-100">Guardar Tasa</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,261 @@
+{% extends "layout.html" %}
+{% block title %}Gestión de Cuentas{% endblock %}
+{% block content %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Listado de Cuentas Constantes</h2>
+        <div>
+            <a href="{{ url_for('create_account') }}" class="btn btn-primary">Nueva Cuenta</a>
+            <a href="{{ url_for('index_payments') }}" class="btn btn-outline-secondary">Ver Pagos</a>
+        </div>
+    </div>
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Tipo</th>
+                <th>Concepto</th>
+                <th>Referencia</th>
+                <th>Total</th>
+                <th>Vencimiento</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for acc in accounts %}
+            <tr>
+                <td>{{ acc.ID }}</td>
+                <td>{{ acc.accType }}</td>
+                <td>{{ acc.concept }}</td>
+                <td>{{ acc.reference }}</td>
+                <td>
+                    ${{ "{:,.2f}".format(acc.Total) }}
+                    <br><small class="text-muted">Bs. {{ "{:,.2f}".format(acc.Total * current_tasa) }}</small>
+                </td>
+                <td>{{ acc.enddate|spanish_date }}</td>
+                <td>
+                    <span class="badge {% if acc.status == 'pagado' %}bg-success{% elif acc.status == 'vencido' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                        {{ acc.status }}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info text-white" onclick="viewAccountDetails('{{ acc.ID }}')">
+                        <i data-lucide="eye"></i> Ver
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Modal de Detalles de Cuenta -->
+    <div class="modal fade" id="accountModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Detalles de Cuenta: <span id="modalAccountID"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <h6>Historial de Pagos</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID Pago</th>
+                                        <th>Monto</th>
+                                        <th>Fecha</th>
+                                        <th>Método</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paymentsHistoryBody">
+                                    <!-- Se llena vía JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Monthly Payment Info -->
+                    <div id="monthlyPaymentInfo" class="mb-4" style="display: none;">
+                        <h6 class="text-primary">Información de Pago Mensual</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p class="mb-1"><strong>Monto Mensual:</strong></p>
+                                <p id="monthlyAmount" class="text-muted"></p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><strong>Último Pago:</strong></p>
+                                <p id="lastPaymentDate" class="text-muted"></p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1"><strong>Próximo Pago:</strong></p>
+                                <p id="nextPaymentDate" class="text-danger fw-bold"></p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="editNextPayment()">
+                            <i data-lucide="edit-3"></i> Editar Próxima Fecha
+                        </button>
+                    </div>
+                    
+                    <!-- Edit Next Payment Modal -->
+                    <div class="modal fade" id="editNextPaymentModal" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title">Editar Próxima Fecha de Pago</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" id="editPaymentAccountId">
+                                    <div class="mb-3">
+                                        <label class="form-label">Nueva Fecha de Próximo Pago</label>
+                                        <input type="date" id="newNextPaymentDate" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="btn btn-primary" onclick="saveNextPaymentDate()">Guardar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a id="editAccountBtn" href="#" class="btn btn-warning">
+                            <i data-lucide="edit-3"></i> Editar Cuenta
+                        </a>
+                        <form id="deleteAccountForm" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar esta cuenta?')">
+                            <button type="submit" class="btn btn-danger">
+                                <i data-lucide="trash-2"></i> Eliminar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+       
+        let accountModal;
+        let editNextPaymentModal;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            accountModal = new bootstrap.Modal(document.getElementById('accountModal'));
+            editNextPaymentModal = new bootstrap.Modal(document.getElementById('editNextPaymentModal'));
+        });
+        
+        function editNextPayment() {
+            editNextPaymentModal.show();
+        }
+
+        function saveNextPaymentDate() {
+            const id = document.getElementById('editPaymentAccountId').value;
+            const nextDate = document.getElementById('newNextPaymentDate').value;
+            
+            if (!nextDate) {
+                alert("Por favor seleccione una fecha válida");
+                return;
+            }
+
+            fetch(`/accounts/update_next_payment/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ next_payment_date: nextDate })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    editNextPaymentModal.hide();
+                    viewAccountDetails(id); // Recargar los detalles para ver el cambio reflejado
+                } else {
+                    alert("Error al actualizar la fecha: " + (data.message || "Error desconocido"));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Error de red al intentar actualizar la fecha");
+            });
+        }
+
+        function viewAccountDetails(id) {
+            fetch(`/accounts/details/${id}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Error al obtener detalles');
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.account) {
+                        alert("No se encontró la información de la cuenta");
+                        return;
+                    }
+
+                    document.getElementById('modalAccountID').innerText = data.account.ID;
+                    // Configurar botones de acción
+                    document.getElementById('editAccountBtn').href = `/accounts/edit/${id}`;
+                    document.getElementById('deleteAccountForm').action = `/accounts/delete/${id}`;
+                    
+                    // Show monthly payment info if applicable
+                    const monthlyInfo = document.getElementById('monthlyPaymentInfo');
+                    if (data.account.is_monthly == 1 || data.account.is_monthly === true) {
+                        monthlyInfo.style.display = 'block';
+                        const mAmount = parseFloat(data.account.monthly_amount || 0);
+                        const bsAmount = (mAmount * window.currentTasa).toLocaleString();
+                        document.getElementById('monthlyAmount').innerText = data.account.monthly_amount ? `$${mAmount.toLocaleString()} (Bs. ${bsAmount})` : 'N/A';
+                        document.getElementById('lastPaymentDate').innerText = data.account.last_payment_date || 'Sin pagos';
+                        document.getElementById('nextPaymentDate').innerText = data.account.next_payment_date || 'No definida';
+                        document.getElementById('editPaymentAccountId').value = id;
+                        document.getElementById('newNextPaymentDate').value = data.account.next_payment_date ? data.account.next_payment_date.split('/').reverse().join('-') : '';
+                    } else {
+                        monthlyInfo.style.display = 'none';
+                    }
+                    
+                    // Llenar tabla de pagos
+                    const tbody = document.getElementById('paymentsHistoryBody');
+                    tbody.innerHTML = '';
+                    
+                    // Calcular saldo restante y mostrar en Bs
+                    const originalTotal = parseFloat(data.account.Total) || 0;
+                    const rawRemaining = (data.account.total !== null && data.account.total !== undefined) ? data.account.total : originalTotal;
+                    const remaining = parseFloat(rawRemaining) || 0;
+                    const tasa = window.currentTasa || 0;
+                    
+                    tbody.innerHTML += `<tr class="table-info text-center"><td colspan="4"><strong>Saldo Pendiente: $${remaining.toLocaleString()} (Bs. ${(remaining * tasa).toLocaleString()})</strong></td></tr>`;
+                    
+                    if (data.payments.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay pagos registrados</td></tr>';
+                    } else {
+                        data.payments.forEach(p => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${p.payID}</td>
+                                    <td>$${parseFloat(p.amount_paid).toLocaleString()}</td>
+                                    <td>${p.payment_date}</td>
+                                    <td>${p.method}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    
+                    accountModal.show();
+                    lucide.createIcons(); // Recargar iconos dentro del modal
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("Error al cargar los datos. Por favor, intente de nuevo.");
+                });
+        }
+    </script>
+{% endblock %}
