@@ -45,6 +45,26 @@
                     <option value="pagado" {{ 'selected' if account and account.status == 'pagado' else '' }}>Pagado</option>
                 </select>
             </div>
+             <div class="mb-3">
+                <label class="form-label">Permanencia</label>
+                <select name="permanency" class="form-select">
+                    <option value="1" {{ 'selected' if account and account.permanency == 1 else '' }}>Si</option>
+                    <option value="0" {{ 'selected' if account and account.permanency == 0 else '' }}>No</option>
+                </select>
+            </div>
+            
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="is_monthly" name="is_monthly" value="1" {{ 'checked' if account and account.is_monthly else '' }} onchange="toggleMonthlyAmount()">
+                <label class="form-check-label" for="is_monthly">Cuenta de pago mensual</label>
+            </div>
+            
+            <div class="mb-3 {{ 'd-block' if account and account.is_monthly else 'd-none' }}" id="monthly_amount_container">
+                <label class="form-label">Monto Mensual</label>
+                <input type="number" step="0.01" name="monthly_amount" class="form-control" value="{{ account.monthly_amount if account and account.monthly_amount else '' }}">
+            </div>
+
+
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn {{ 'btn-warning' if edit_mode else 'btn-success' }} flex-grow-1">
                     {{ 'Actualizar Cuenta' if edit_mode else 'Guardar Cuenta' }}
@@ -54,4 +74,12 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleMonthlyAmount() {
+    const checkbox = document.getElementById('is_monthly');
+    const container = document.getElementById('monthly_amount_container');
+    container.style.display = checkbox.checked ? 'block' : 'none';
+}
+</script>
 {% endblock %}

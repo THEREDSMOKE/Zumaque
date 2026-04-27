@@ -1,0 +1,6 @@
+Flask
+PyJWT
+pyodbc
+python-dotenv
+gunicorn
+Werkzeug
